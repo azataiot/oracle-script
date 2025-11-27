@@ -1,10 +1,51 @@
 /**
- * Find the 'compute' iframe window within the document if it isn't
- * already the current window in devtools.
+ * Find the correct window context containing the Create button.
+ * Searches through all iframes to find where the button actually lives.
  */
-const computeWindow = document.querySelector("#compute-wrapper")
-	? window
-	: document.querySelector("#sandbox-compute-container")?.contentWindow || window;
+const findComputeWindow = () => {
+	// Check current window first
+	if (document.querySelector('button[aria-label="Create"]')) {
+		return window;
+	}
+
+	// Check known iframe selectors
+	const knownSelectors = [
+		"#compute-wrapper",
+		"#sandbox-compute-container",
+		"iframe[name*='compute']",
+		"iframe[src*='compute']"
+	];
+
+	for (const selector of knownSelectors) {
+		try {
+			const element = document.querySelector(selector);
+			if (element?.contentWindow?.document?.querySelector('button[aria-label="Create"]')) {
+				return element.contentWindow;
+			}
+		} catch (e) {
+			// Cross-origin or access denied, skip
+		}
+	}
+
+	// Check ALL iframes as fallback
+	const iframes = document.querySelectorAll('iframe');
+	for (const iframe of iframes) {
+		try {
+			const iframeDoc = iframe.contentWindow?.document;
+			if (iframeDoc?.querySelector('button[aria-label="Create"]')) {
+				console.info(`%c *** Found Create button in iframe: ${iframe.id || iframe.name || iframe.src} *** `, "background-color: #222; color: #44bd50");
+				return iframe.contentWindow;
+			}
+		} catch (e) {
+			// Cross-origin iframe, skip
+		}
+	}
+
+	// Last fallback to original logic
+	return document.querySelector("#sandbox-compute-container")?.contentWindow || window;
+};
+
+const computeWindow = findComputeWindow();
 
 /**
  * Multiple selectors to find the Create button, as Oracle may have changed their CSS structure
